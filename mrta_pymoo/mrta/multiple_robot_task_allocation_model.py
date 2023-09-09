@@ -62,6 +62,7 @@ class MultipleRobotTaskAllocationProblem(ElementwiseProblem):
         out["F"] = np.array(
             # [fitness_total_sum, fitness_max_time_span, fitness_mission_priority],
             [fitness_total_sum, fitness_max_time_span],
+            # [fitness_max_time_span],
             dtype=float,
         )
         # out["H"] = np.array(
@@ -266,19 +267,28 @@ class MultipleRobotMultipleRobotTaskAllocationCrossover(Crossover):
 
         @note: The shape of X and Y is identical.
         """
+        # best 0.3, 0.1, 0.0
+        TWO_CHROMOSOMES_CROSSOVER_RATE = 0.7 # 0.7
+        MISSION_ORDER_SWITCH_MUTATION_RATE = 0.1 # 0.05
+        SINGLE_CHROMOSOME_CROSSOVER_RATE = 0.1
+        REPLICATION_RATE = 0.1
         _, n_matings, _ = X.shape
         Y = np.full_like(X, None, dtype=object)
         for k in range(n_matings):
             r = np.random.random()
             p1, p2 = X[0, k, :], X[1, k, :]
-            if r < 0.3:
+            if r < TWO_CHROMOSOMES_CROSSOVER_RATE:
                 # Two chromosomes crossover
                 r = np.random.random()
                 p1[0 : problem.mission_num], p2[0 : problem.mission_num] = (
                     p2[0 : problem.mission_num],
                     p1[0 : problem.mission_num].copy(),
                 )
-            elif r < 0.6 and problem.mission_num > 1:
+            elif (
+                r
+                < (TWO_CHROMOSOMES_CROSSOVER_RATE + MISSION_ORDER_SWITCH_MUTATION_RATE)
+                and problem.mission_num > 1
+            ):
                 # Mission-order switch mutation
                 switch_pair = np.random.randint(problem.mission_num, size=2)
                 (
@@ -295,7 +305,15 @@ class MultipleRobotMultipleRobotTaskAllocationCrossover(Crossover):
                     p2[switch_pair[1]],
                     p2[switch_pair[0]],
                 )
-            elif r < 0.9 and problem.mission_num > 0:
+            elif (
+                r
+                < (
+                    TWO_CHROMOSOMES_CROSSOVER_RATE
+                    + MISSION_ORDER_SWITCH_MUTATION_RATE
+                    + SINGLE_CHROMOSOME_CROSSOVER_RATE
+                )
+                and problem.mission_num > 0
+            ):
                 # Single chromosome crossover​
                 self_crossover_point = np.random.randint(problem.mission_num)
                 p1 = np.concatenate(
@@ -321,7 +339,7 @@ class MultipleRobotMultipleRobotTaskAllocationCrossover(Crossover):
 
 class MultipleRobotMultipleRobotTaskAllocationMutation(Mutation):
     def __init__(self):
-        super().__init__()
+        super().__init__(prob_var=0.1)
 
     def _do(self, problem, X, **kwargs):
         """
@@ -337,9 +355,20 @@ class MultipleRobotMultipleRobotTaskAllocationMutation(Mutation):
         @param X: All individuals in the population. Shape: [population size, n_var]
         @return: X: Offsprings after mutation of parents. Shape: [population size, n_var]
         """
+        MISSION_NUMBER_SWITCH_MUTATION_RATE = 0.05
+        MISSION_ORDER_SHUFFLE_MUTATION_RATE = 0.4 # effective 0.6
+        MISSION_NUMBER_RANDOM_MUTATION_RATE = 0.05
+        MISSION_ORDER_RANDOM_MUTATION_RATE = 0.05
+        MISSION_ORDER_SHUFFLE_PER_ROBOT_MUTATION_RATE = 0.1
+        # REPLICATION_RATE = 1 - (
+        #     MISSION_NUMBER_SWITCH_MUTATION_RATE
+        #     + MISSION_ORDER_SHUFFLE_MUTATION_RATE
+        #     + MISSION_ORDER_RANDOM_MUTATION_RATE
+        #     + MISSION_ORDER_SHUFFLE_PER_ROBOT_MUTATION_RATE
+        # )
         for i in range(len(X)):
             r = np.random.random()
-            if r < 0.2:
+            if r < MISSION_NUMBER_SWITCH_MUTATION_RATE:
                 # Mission-number switch mutation
                 switch_pair = np.random.randint(problem.robot_num, size=2)
                 (
@@ -349,7 +378,10 @@ class MultipleRobotMultipleRobotTaskAllocationMutation(Mutation):
                     X[i][problem.mission_num + switch_pair[1]],
                     X[i][problem.mission_num + switch_pair[0]],
                 )
-            elif r < 0.4:
+            elif r < (
+                MISSION_NUMBER_SWITCH_MUTATION_RATE
+                + MISSION_ORDER_SHUFFLE_MUTATION_RATE
+            ):
                 # Mission-order shuffle mutation
                 switch_pair = np.random.randint(problem.mission_num, size=2)
                 (
@@ -359,17 +391,32 @@ class MultipleRobotMultipleRobotTaskAllocationMutation(Mutation):
                     X[i][switch_pair[1]],
                     X[i][switch_pair[0]],
                 )
-            elif r < 0.55:
+            elif r < (
+                MISSION_NUMBER_SWITCH_MUTATION_RATE
+                + MISSION_ORDER_SHUFFLE_MUTATION_RATE
+                + MISSION_NUMBER_RANDOM_MUTATION_RATE
+            ):
                 # Mission-number random mutation
                 X[i][problem.mission_num :] = generate_separation_index(
                     problem.robot_num, problem.mission_num
                 )
-            elif r < 0.7:
+            elif r < (
+                MISSION_NUMBER_SWITCH_MUTATION_RATE
+                + MISSION_ORDER_SHUFFLE_MUTATION_RATE
+                + MISSION_NUMBER_RANDOM_MUTATION_RATE
+                + MISSION_ORDER_RANDOM_MUTATION_RATE
+            ):
                 # Mission-order random mutation
                 X[i][0 : problem.mission_num] = generate_random_order(
                     problem.mission_num
                 )
-            elif r < 0.9:
+            elif r < (
+                MISSION_NUMBER_SWITCH_MUTATION_RATE
+                + MISSION_ORDER_SHUFFLE_MUTATION_RATE
+                + MISSION_NUMBER_RANDOM_MUTATION_RATE
+                + MISSION_ORDER_RANDOM_MUTATION_RATE
+                + MISSION_ORDER_SHUFFLE_PER_ROBOT_MUTATION_RATE
+            ):
                 # Mission-order shuffle-per-robot mutation
                 for j in range(problem.robot_num):
                     np.random.shuffle(

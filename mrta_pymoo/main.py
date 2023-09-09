@@ -4,6 +4,7 @@ import numpy as np
 import time
 import tsplib95
 
+from pymoo.algorithms.soo.nonconvex.ga import GA
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.algorithms.moo.nsga3 import NSGA3
 from pymoo.algorithms.moo.unsga3 import UNSGA3
@@ -27,19 +28,15 @@ from mrta.multiple_robot_task_allocation_model import (
     MultipleRobotMultipleRobotTaskAllocationMutation,
     MultipleRobotMultipleRobotTaskAllocationDuplicateElimination,
 )
-population_size_choice = [10, 20, 30]
-generation_num_choice = [i for i in range(1000, 10001, 1000)]
-print("population_size_choice: ", population_size_choice)
-print("generation_num_choice: ", generation_num_choice)
 
 POPULATION_SIZE = 10
-GENERATION_NUM = 20000
-EXPERIMENT_TIMES = 1
+GENERATION_NUM = 4000
+EXPERIMENT_TIMES = 5
 
-tsp_dataset = tsplib95.load_problem("../tsp/eil51.tsp")
+tsp_dataset = tsplib95.load_problem("../tsp/rat99.tsp")
 G = tsp_dataset.get_graph()
 # robot_num = int(input("Please input the number of robots: "))
-robot_num = 5
+robot_num = int(input("Please input the number of robots: "))
 node_num = G.number_of_nodes()
 
 #
@@ -63,13 +60,7 @@ robot_to_mission_end_table = np.tile(C[1:, 0].T, (robot_num, 1))
 mission_num = node_num - 1
 
 
-POPULATION_SIZE = pop_size
-GENERATION_NUM = gen_num
-print("\n===============================================\n")
-print("POPULATION_SIZE: ", POPULATION_SIZE)
-print("GENERATION_NUM: ", GENERATION_NUM)
-print("\n")
-
+# ref_dirs = get_reference_directions("das-dennis", 3, n_partitions=12)
 algorithm = NSGA2(
     pop_size=POPULATION_SIZE,
     sampling=MultipleRobotMultipleRobotTaskAllocationSampling(
@@ -79,6 +70,7 @@ algorithm = NSGA2(
     mutation=MultipleRobotMultipleRobotTaskAllocationMutation(),
     save_history=False,  # set True to save history for visualization, default should be False
     eliminate_duplicates=MultipleRobotMultipleRobotTaskAllocationDuplicateElimination(),
+    # ref_dirs=ref_dirs
 )
 
 problem = MultipleRobotTaskAllocationProblem(
@@ -95,9 +87,11 @@ termination = get_termination("n_gen", GENERATION_NUM)
 
 total_distance_list = []
 distance_each_agent_list = []
+max_makespan_list = []
 process_time_list = []
 standard_deviation_list = []
 ans_list = []
+pareto_front_list = []
 
 for _ in range(EXPERIMENT_TIMES):
     start_time = time.time()
@@ -108,36 +102,65 @@ for _ in range(EXPERIMENT_TIMES):
     process_time = end_time - start_time
     process_time_list.append(process_time)
 
-    results_nsga2 = res_nsga2.X[np.argsort(res_nsga2.F[:, 0])]
 
-    ## Multi-Criteria Decision Making
+    # ## Multi-Criteria Decision Making
+    results_nsga2 = res_nsga2.X[np.argsort(res_nsga2.F[:, 0])]
     F_nsga2 = res_nsga2.F
     weights = np.array(
-        [1.0, 0.0]
+        [0.5, 0.5]
     )  # [fitness_total_sum, fitness_max_time_span, fitness_mission_priority]
     pseudo_weight = PseudoWeights(weights).do(F_nsga2)
+    # plot_pseudo_weight_choice(F_nsga2, pseudo_weight)
     previous_best_allocation = results_nsga2[pseudo_weight]
     result = convert_chromosome_to_allocation(
-        robot_num, mission_num, res_nsga2.X[pseudo_weight]
+        robot_num, mission_num, res_nsga2.X[pseudo_weight] # NSGA2
+        # robot_num, mission_num, res_nsga2.X # GA
     )
     ans_list.append(result)
     traveled_distance_per_robot = problem.objective_func(result)
     distance_each_agent_list.append(traveled_distance_per_robot)
+    max_makespan_list.append(max(traveled_distance_per_robot))
     standard_deviation_list.append(np.std(traveled_distance_per_robot))
     total_distance_list.append(sum(traveled_distance_per_robot))
+    pareto_front_list.append(F_nsga2)
     # for i in range(robot_num):
     #     print("Robot {} : {}, travel distance: {}".format(i, result[i], traveled_distance_per_robot[i]))
     print("Total traveled Distance: {}".format(problem.objective_func_total_sum(result)))
+    print("Traveled Distance each robot: {}".format(traveled_distance_per_robot))
+
+    # plot_F_history([("NSGA-II", res_nsga2.history)])
+
+    # plt.figure()
+
+    # colors = ['black', 'blue', 'green', 'red', 'pink', 'orange', 'purple', 'brown', 'gray', 'olive', 'cyan']
+    #     # sort the pareto front with x
+    pareto_front = F_nsga2[np.argsort(F_nsga2[:, 0])]
+    print("pareto_front: ", pareto_front)
+    # # plt.scatter(pareto_front[:, 0], pareto_front[:, 1], c=colors[i], label="pareto_front_"+str(i), marker='o-')
+    # plt.plot(pareto_front[:, 0], pareto_front[:, 1], c=colors[0], label="pareto_front_itr_"+str(0), marker='o')
+    # # link the points
+    # # for i in range(len(pareto_front) - 1):
+    # #     plt.plot([pareto_front[i][0], pareto_front[i + 1][0]], [pareto_front[i][1], pareto_front[i + 1][1]], c=colors[pareto_front_list.index(pareto_front)])
+
+    # plt.title("Pareto front Solutions in Objective Space")
+    # plt.xlabel("Total Traveled Distance [m]")
+    # plt.ylabel("Max Makespan [m]")
+    # plt.legend()
+    # plt.show()
 
 print("total_distance_list: ", total_distance_list)
 print("min_distance: ", min(total_distance_list))
 print("max_distance: ", max(total_distance_list))
 print("average_distance: ", sum(total_distance_list) / len(total_distance_list))
 print("average_process_time: ", sum(process_time_list) / len(process_time_list))
+print("distance std dev: ", np.std(total_distance_list))
 
 # choose the min total distance and print the distance of each agent
-min_index = total_distance_list.index(min(total_distance_list))
-print("min_distance_each_agent: ", distance_each_agent_list[min_index].tolist())
+# min_index = total_distance_list.index(min(total_distance_list))
+# print("min_distance_each_agent: ", distance_each_agent_list[min_index].tolist())
+print("max_makespan: ", max_makespan_list)
+print("average_makespan: ", sum(max_makespan_list) / len(max_makespan_list))
+print("makespan std dev: ", np.std(max_makespan_list))
 print("standard_deviation: ", standard_deviation_list[min_index])
 print("process_time: ", process_time_list[min_index])
 
