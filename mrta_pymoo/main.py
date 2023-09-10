@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 import os
 import time
@@ -15,7 +14,8 @@ from pymoo.optimize import minimize
 from pymoo.termination import get_termination
 from mrta.utils import (
     convert_chromosome_to_allocation,
-    list_to_path,
+    plot_travel_path,
+    plot_pareto_front,
 )
 from mrta.multiple_robot_task_allocation_model import (
     MultipleRobotMultipleRobotTaskAllocationCrossover,
@@ -27,7 +27,7 @@ from mrta.multiple_robot_task_allocation_model import (
 
 POPULATION_SIZE = 10
 GENERATION_NUM = 3000
-EXPERIMENT_TIMES = 5
+EXPERIMENT_TIMES = 1
 ONLINE_OPTIMIZATION = True
 PLOT_TRAVEL_PATH = True
 PLOT_PARETO_FRONT = True
@@ -147,72 +147,9 @@ print("----------------------------------------")
 if PLOT_TRAVEL_PATH:
     # draw
     min_index = total_distance_list.index(min(total_distance_list))
-    ans = selected_solution_list[min_index]
-    colors = [
-        "black",
-        "blue",
-        "green",
-        "red",
-        "pink",
-        "orange",
-        "purple",
-        "brown",
-        "gray",
-        "olive",
-        "cyan",
-    ]
-    _, ax = plt.subplots()
-    pos = tsp_dataset.node_coords
-    nx.draw_networkx_nodes(G, pos=pos, ax=ax, node_color="black", node_size=10)
-    for i in range(len(ans)):
-        solution = ans[i] + 2
-        path = list_to_path(solution)
-        nx.draw_networkx_edges(
-            G,
-            pos=pos,
-            edgelist=path,
-            arrows=False,
-            edge_color=colors[i],
-            label="robot_" + str(i),
-        )
-
-    # If this doesn't exsit, x_axis and y_axis's numbers are not there.
-    ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
-
-    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1))
-    plt.subplots_adjust(
-        right=0.8
-    )  # Increase the right margin to make space for the legend
-    plt.show()
+    solution = selected_solution_list[min_index]
+    plot_travel_path(solution, tsp_dataset)
 
 
 if PLOT_PARETO_FRONT:
-    colors = [
-        "black",
-        "blue",
-        "green",
-        "red",
-        "pink",
-        "orange",
-        "purple",
-        "brown",
-        "gray",
-        "olive",
-        "cyan",
-    ]
-    plt.figure()
-    for i in range(EXPERIMENT_TIMES):
-        pareto_front = pareto_front_list[i][np.argsort(pareto_front_list[i][:, 0])]
-        plt.plot(
-            pareto_front[:, 0],
-            pareto_front[:, 1],
-            label="pareto_front_itr_" + str(i),
-            marker="o",
-            c=colors[i],
-        )
-
-    plt.title("Pareto front Solutions in Objective Space")
-    plt.xlabel("Total Traveled Distance [m]")
-    plt.ylabel("Max Makespan [s]")
-    plt.legend()
-    plt.show()
+    plot_pareto_front(pareto_front_list)

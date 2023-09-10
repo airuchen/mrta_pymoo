@@ -3,6 +3,7 @@ import numpy as np
 
 from pymoo.indicators.hv import Hypervolume
 from pymoo.util.running_metric import RunningMetricAnimation
+import networkx as nx
 
 MISSION_INDEX_DTYPE = np.uint8
 
@@ -75,6 +76,7 @@ def convert_chromosome_to_allocation(num_robot, num_mission, chromosome):
 
 def list_to_path(l):
     path = []
+    print("l: ",l)
     path.append((1, l[0]))
     for i in range(len(l) - 1):
         path.append((l[i], l[i + 1]))
@@ -277,3 +279,74 @@ def constraint_satisfactory(result_history):
         plt.xlabel("Function Evaluations")
         plt.legend()
         plt.show()
+
+def plot_travel_path(allocation_list, tsp_dataset):
+    colors = [
+            "black",
+            "blue",
+            "green",
+            "red",
+            "pink",
+            "orange",
+            "purple",
+            "brown",
+            "gray",
+            "olive",
+            "cyan",
+        ]
+    _, ax = plt.subplots()
+    pos = tsp_dataset.node_coords
+    G = tsp_dataset.get_graph()
+    nx.draw_networkx_nodes(G, pos=pos, ax=ax, node_color="black", node_size=10)
+    for i in range(len(allocation_list)):
+        solution = allocation_list[i] + 2
+        path = list_to_path(solution)
+        nx.draw_networkx_edges(
+            G,
+            pos=pos,
+            edgelist=path,
+            arrows=False,
+            edge_color=colors[i],
+            label="robot_" + str(i),
+        )
+
+    # If this doesn't exsit, x_axis and y_axis's numbers are not there.
+    ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+
+    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1))
+    plt.subplots_adjust(
+        right=0.8
+    )  # Increase the right margin to make space for the legend
+    plt.show()
+
+
+def plot_pareto_front(pareto_front_list):
+    colors = [
+        "black",
+        "blue",
+        "green",
+        "red",
+        "pink",
+        "orange",
+        "purple",
+        "brown",
+        "gray",
+        "olive",
+        "cyan",
+    ]
+    plt.figure()
+    for i, pareto_front in enumerate(pareto_front_list):
+        pareto_front = pareto_front[np.argsort(pareto_front[:, 0])]
+        plt.plot(
+            pareto_front[:, 0],
+            pareto_front[:, 1],
+            label="pareto_front_itr_" + str(i),
+            marker="o",
+            c=colors[i],
+        )
+
+    plt.title("Pareto front Solutions in Objective Space")
+    plt.xlabel("Total Traveled Distance [m]")
+    plt.ylabel("Max Makespan [s]")
+    plt.legend()
+    plt.show()
