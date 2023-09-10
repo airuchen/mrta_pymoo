@@ -1,3 +1,4 @@
 pymoo/
 venv/
 *.pyc
+*.lock

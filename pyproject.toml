@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "mrta-pymoo"
+version = "0.1.0"
+description = "A multi-robot task allocation implementation using pymoo"
+authors = ["Yu-Wen Chen <ywc907@node-robotics.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+matplotlib = "^3.4.3"
+networkx = "^2.5"
+numpy = "^1.21.2"
+tsplib95 = "^0.7.1"
+pymoo = "^0.6.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

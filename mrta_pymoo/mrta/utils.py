@@ -73,6 +73,15 @@ def convert_chromosome_to_allocation(num_robot, num_mission, chromosome):
     return allocation
 
 
+def list_to_path(l):
+    path = []
+    path.append((1, l[0]))
+    for i in range(len(l) - 1):
+        path.append((l[i], l[i + 1]))
+    path.append((l[-1], 1))
+    return path
+
+
 def generate_random_chromosome(num_robot, num_mission):
     """
     @param num_robot: number of robots
